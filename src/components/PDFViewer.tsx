@@ -34,7 +34,7 @@ export const PDFViewer = ({ url, highlights, onAddHighlight, scrollRef, scale, s
                         pdfDocument={pdfDocument}
                         enableAreaSelection={(event) => selectionMode === 'area' || event.altKey}
                         onScrollChange={resetHash}
-                        pdfScaleValue={scale as any}
+                        pdfScaleValue={scale.toString()}
                         scrollRef={(scrollTo) => {
                             scrollRef(scrollTo);
 
