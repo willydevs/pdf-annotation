@@ -11,7 +11,7 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ highlights, onRemoveHighlight, onHighlightClick }) => {
     return (
-        <div className="w-80 bg-white border-l border-gray-200 h-full flex flex-col font-sans">
+        <div className="w-full md:w-80 bg-white border-t md:border-l md:border-t-0 border-gray-200 h-full flex flex-col font-sans">
             <div className="p-4 border-b border-gray-200">
                 <h2 className="text-xl font-bold text-gray-800">Anotações</h2>
                 <p className="text-sm text-gray-500">{highlights.length} item(ns)</p>

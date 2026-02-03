@@ -75,8 +75,8 @@ function App() {
         setSelectionMode={setSelectionMode}
       />
 
-      <div className="flex flex-1 overflow-hidden">
-        <div className="flex-1 relative">
+      <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
+        <div className="flex-1 relative h-[60%] md:h-full w-full">
           <PDFViewer
             url={url}
             highlights={highlights}
@@ -86,11 +86,13 @@ function App() {
             selectionMode={selectionMode}
           />
         </div>
-        <Sidebar
-          highlights={highlights}
-          onRemoveHighlight={removeHighlight}
-          onHighlightClick={scrollToHighlight}
-        />
+        <div className="h-[40%] md:h-auto md:w-auto w-full overflow-hidden">
+          <Sidebar
+            highlights={highlights}
+            onRemoveHighlight={removeHighlight}
+            onHighlightClick={scrollToHighlight}
+          />
+        </div>
       </div>
     </div>
   );
