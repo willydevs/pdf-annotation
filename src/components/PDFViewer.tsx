@@ -31,6 +31,7 @@ export const PDFViewer = ({ url, highlights, onAddHighlight, scrollRef, scale, s
             <PdfLoader url={url} beforeLoad={<div className="flex items-center justify-center h-full"><Loader2 className="animate-spin text-blue-500" size={40} /></div>}>
                 {(pdfDocument) => (
                     <PdfHighlighter
+                        key={scale} // Force remount on scale change
                         pdfDocument={pdfDocument}
                         enableAreaSelection={(event) => selectionMode === 'area' || event.altKey}
                         onScrollChange={resetHash}
