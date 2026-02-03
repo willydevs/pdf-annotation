@@ -43,7 +43,10 @@ export const Toolbar: React.FC<ToolbarProps> = ({ scale, setScale, onUpload, sel
 
                 <div className="flex items-center space-x-1 md:space-x-2 bg-gray-100 rounded-lg p-1">
                     <button
-                        onClick={() => setScale(scale - 0.1)}
+                        onClick={() => {
+                            const newScale = Math.max(0.5, parseFloat((scale - 0.1).toFixed(1)));
+                            setScale(newScale);
+                        }}
                         className="p-1.5 md:p-2 hover:bg-white rounded-md transition-colors text-gray-600"
                         title="Diminuir Zoom"
                     >
@@ -53,7 +56,10 @@ export const Toolbar: React.FC<ToolbarProps> = ({ scale, setScale, onUpload, sel
                         {Math.round(scale * 100)}%
                     </span>
                     <button
-                        onClick={() => setScale(scale + 0.1)}
+                        onClick={() => {
+                            const newScale = Math.min(3.0, parseFloat((scale + 0.1).toFixed(1)));
+                            setScale(newScale);
+                        }}
                         className="p-1.5 md:p-2 hover:bg-white rounded-md transition-colors text-gray-600"
                         title="Aumentar Zoom"
                     >

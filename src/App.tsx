@@ -22,22 +22,30 @@ function App() {
   const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [scale, setScale] = useState<number>(1);
   const [selectionMode, setSelectionMode] = useState<'text' | 'area'>('text');
+  const [docId, setDocId] = useState<string>('vade_mecum_default');
 
-  // Persistence
+  // Persistence: Load on docId change
   useEffect(() => {
-    const saved = localStorage.getItem('pdf-highlights');
+    const key = `pdf-highlights-${docId}`;
+    const saved = localStorage.getItem(key);
     if (saved) {
       try {
         setHighlights(JSON.parse(saved));
       } catch (e) {
         console.error("Failed to load highlights", e);
+        setHighlights([]);
       }
+    } else {
+      setHighlights([]);
     }
-  }, []);
+  }, [docId]);
 
+  // Persistence: Save on highlight change
   useEffect(() => {
-    localStorage.setItem('pdf-highlights', JSON.stringify(highlights));
-  }, [highlights]);
+    if (highlights.length > 0 || localStorage.getItem(`pdf-highlights-${docId}`)) {
+      localStorage.setItem(`pdf-highlights-${docId}`, JSON.stringify(highlights));
+    }
+  }, [highlights, docId]);
 
   const addHighlight = (highlight: Highlight) => {
     console.log("Saving highlight", highlight);
@@ -61,7 +69,8 @@ function App() {
     if (file) {
       const fileUrl = URL.createObjectURL(file);
       setUrl(fileUrl);
-      setHighlights([]); // Clear highlights for new file? Or keep? Usually clear or unique by file.
+      // Use filename as ID. Fallback to random if missing (unlikely)
+      setDocId(file.name || crypto.randomUUID());
     }
   };
 
