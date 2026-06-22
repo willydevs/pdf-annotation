@@ -15,7 +15,7 @@ import 'react-pdf-highlighter/dist/style.css';
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 // Default PDF (can be replaced by upload)
-const DEFAULT_URL = "/Vade_mecum_EC134_2024.pdf";
+const DEFAULT_URL = "/Vade_mecum_2026_uma_coluna.pdf";
 
 function App() {
   const [url, setUrl] = useState<string>(DEFAULT_URL);
