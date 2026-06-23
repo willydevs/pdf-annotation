@@ -79,6 +79,23 @@ function signToken(user) {
   return jwt.sign(publicUser(user), jwtSecret, { expiresIn: "30d" });
 }
 
+function parseHighlights(value) {
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  return [];
+}
+
 async function findUserByEmail(email) {
   const [rows] = await pool.execute("SELECT * FROM users WHERE email = ? LIMIT 1", [email]);
   return rows[0] || null;
@@ -204,7 +221,7 @@ app.get("/api/annotations/:docId", requireAuth, async (req, res) => {
     "SELECT highlights_json FROM annotations WHERE user_id = ? AND doc_id = ? LIMIT 1",
     [req.user.id, req.params.docId],
   );
-  res.json({ highlights: rows[0]?.highlights_json || [] });
+  res.json({ highlights: parseHighlights(rows[0]?.highlights_json) });
 });
 
 app.put("/api/annotations/:docId", requireAuth, async (req, res) => {
@@ -213,7 +230,7 @@ app.put("/api/annotations/:docId", requireAuth, async (req, res) => {
 
   await pool.execute(
     `INSERT INTO annotations (user_id, doc_id, highlights_json)
-     VALUES (?, ?, CAST(? AS JSON))
+     VALUES (?, ?, ?)
      ON DUPLICATE KEY UPDATE highlights_json = VALUES(highlights_json), updated_at = CURRENT_TIMESTAMP`,
     [req.user.id, req.params.docId, serialized],
   );
