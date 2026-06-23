@@ -1,5 +1,6 @@
 import React from 'react';
-import { ZoomIn, ZoomOut, Upload, MousePointer2, Type } from 'lucide-react';
+import { LogOut, MousePointer2, Type, Upload, UserCircle, ZoomIn, ZoomOut } from 'lucide-react';
+import type { User } from '../types';
 
 interface ToolbarProps {
     scale: number;
@@ -7,9 +8,28 @@ interface ToolbarProps {
     onUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
     selectionMode: 'text' | 'area';
     setSelectionMode: (mode: 'text' | 'area') => void;
+    user: User;
+    syncStatus: 'idle' | 'saving' | 'saved' | 'error';
+    onLogout: () => void;
 }
 
-export const Toolbar: React.FC<ToolbarProps> = ({ scale, setScale, onUpload, selectionMode, setSelectionMode }) => {
+const syncLabel = {
+    idle: 'Pronto',
+    saving: 'Salvando',
+    saved: 'Salvo',
+    error: 'Erro ao salvar',
+};
+
+export const Toolbar: React.FC<ToolbarProps> = ({
+    scale,
+    setScale,
+    onUpload,
+    selectionMode,
+    setSelectionMode,
+    user,
+    syncStatus,
+    onLogout,
+}) => {
     return (
         <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 shadow-sm z-10 overflow-x-auto overflow-y-hidden gap-4 min-w-0">
             <div className="flex items-center space-x-4 shrink-0">
@@ -68,7 +88,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ scale, setScale, onUpload, sel
                 </div>
             </div>
 
-            <div className="shrink-0">
+            <div className="shrink-0 flex items-center gap-3">
                 <label className="flex items-center space-x-2 px-3 py-1.5 md:px-4 md:py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg cursor-pointer transition-colors shadow-sm font-medium text-xs md:text-sm">
                     <Upload size={14} className="md:w-[18px] md:h-[18px]" />
                     <span className="hidden sm:inline">Carregar PDF</span>
@@ -80,6 +100,25 @@ export const Toolbar: React.FC<ToolbarProps> = ({ scale, setScale, onUpload, sel
                         className="hidden"
                     />
                 </label>
+
+                <div className="hidden lg:flex flex-col items-end leading-tight">
+                    <span className="text-xs font-medium text-gray-800 flex items-center gap-1">
+                        <UserCircle size={14} />
+                        {user.name}
+                    </span>
+                    <span className={`text-[11px] ${syncStatus === 'error' ? 'text-red-600' : 'text-gray-500'}`}>
+                        {syncLabel[syncStatus]}
+                    </span>
+                </div>
+
+                <button
+                    type="button"
+                    onClick={onLogout}
+                    className="p-2 rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+                    title="Sair"
+                >
+                    <LogOut size={16} />
+                </button>
             </div>
         </div>
     );

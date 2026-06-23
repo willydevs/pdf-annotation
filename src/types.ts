@@ -28,3 +28,15 @@ export interface Highlight {
     };
     id: string;
 }
+
+export interface User {
+    id: number;
+    name: string;
+    email: string;
+    avatarUrl?: string | null;
+}
+
+export interface Session {
+    token: string;
+    user: User;
+}

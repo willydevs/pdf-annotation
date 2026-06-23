@@ -5,14 +5,25 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:full": "concurrently \"npm run server\" \"npm run dev\"",
+    "server": "node server/index.js",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start": "node server/index.js"
   },
   "dependencies": {
     "@types/uuid": "^10.0.0",
+    "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
+    "concurrently": "^10.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "google-auth-library": "^10.7.0",
+    "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.563.0",
+    "mysql2": "^3.22.5",
     "pdfjs-dist": "^4.4.168",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

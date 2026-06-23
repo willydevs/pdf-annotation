@@ -48,8 +48,7 @@ export const PDFViewer = ({ url, highlights, onAddHighlight, scrollRef, scale, s
                         onSelectionFinished={(
                             position,
                             content,
-                            hideTipAndSelection,
-                            _
+                            hideTipAndSelection
                         ) => (
                             <Tip
                                 onConfirm={(comment) => {
