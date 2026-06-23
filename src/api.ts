@@ -1,4 +1,4 @@
-import type { Highlight, Session, User } from "./types";
+import type { AiConversation, AiMessage, Highlight, Session, User } from "./types";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 const SESSION_KEY = "pdf-annotation-session";
@@ -93,6 +93,48 @@ export async function saveHighlights(token: string, docId: string, highlights: H
     {
       method: "PUT",
       body: JSON.stringify({ highlights }),
+    },
+    token,
+  );
+}
+
+export async function fetchAiConversations(token: string): Promise<AiConversation[]> {
+  const data = await request<{ conversations: AiConversation[] }>("/api/ai/conversations", {}, token);
+  return data.conversations;
+}
+
+export async function createAiConversation(token: string, title = "Nova conversa"): Promise<AiConversation> {
+  const data = await request<{ conversation: AiConversation }>(
+    "/api/ai/conversations",
+    {
+      method: "POST",
+      body: JSON.stringify({ title }),
+    },
+    token,
+  );
+  return data.conversation;
+}
+
+export async function fetchAiMessages(token: string, conversationId: number): Promise<AiMessage[]> {
+  const data = await request<{ messages: AiMessage[] }>(
+    `/api/ai/conversations/${conversationId}/messages`,
+    {},
+    token,
+  );
+  return data.messages;
+}
+
+export async function sendAiMessage(
+  token: string,
+  content: string,
+  docId: string,
+  conversationId?: number,
+): Promise<{ conversationId: number; message: AiMessage }> {
+  return request<{ conversationId: number; message: AiMessage }>(
+    "/api/ai/chat",
+    {
+      method: "POST",
+      body: JSON.stringify({ content, docId, conversationId }),
     },
     token,
   );

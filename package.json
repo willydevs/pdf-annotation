@@ -13,6 +13,7 @@
     "start": "node server/index.js"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.105.0",
     "@types/uuid": "^10.0.0",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",

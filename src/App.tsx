@@ -3,8 +3,9 @@ import { Sidebar } from './components/Sidebar';
 import { Toolbar } from './components/Toolbar';
 import { PDFViewer } from './components/PDFViewer';
 import { AuthPanel } from './components/AuthPanel';
+import { AiPanel } from './components/AiPanel';
 import { authStorage, fetchCurrentUser, fetchHighlights, saveHighlights } from './api';
-import type { Highlight, Session } from './types';
+import type { AiAction, Highlight, Session } from './types';
 import * as pdfjs from 'pdfjs-dist';
 
 // Core styles for react-pdf-highlighter
@@ -113,6 +114,72 @@ function App() {
     }
   };
 
+  const createAiHighlight = (action: Extract<AiAction, { type: 'create_annotation' }>) => {
+    const pageNumber = Math.max(1, Number(action.pageNumber) || 1);
+    const highlight: Highlight = {
+      id: crypto.randomUUID(),
+      content: { text: action.quote || action.note },
+      position: {
+        pageNumber,
+        boundingRect: {
+          x1: 8,
+          y1: 8,
+          x2: 92,
+          y2: 18,
+          width: 84,
+          height: 10,
+        },
+        rects: [
+          {
+            x1: 8,
+            y1: 8,
+            x2: 92,
+            y2: 18,
+            width: 84,
+            height: 10,
+          },
+        ],
+      },
+      comment: {
+        text: action.note || `Anotação sugerida pela IA: ${action.quote}`,
+        emoji: 'IA',
+      },
+    };
+
+    setHighlights((prev) => [...prev, highlight]);
+    window.setTimeout(() => scrollToHighlight(highlight), 50);
+  };
+
+  const handleAiAction = (action: AiAction) => {
+    if (action.type === 'create_annotation') {
+      createAiHighlight(action);
+      return;
+    }
+
+    const pageHighlight: Highlight = {
+      id: `ai-page-${action.pageNumber}-${Date.now()}`,
+      content: { text: action.label },
+      position: {
+        pageNumber: Math.max(1, Number(action.pageNumber) || 1),
+        boundingRect: {
+          x1: 1,
+          y1: 1,
+          x2: 2,
+          y2: 2,
+          width: 1,
+          height: 1,
+        },
+        rects: [],
+      },
+      comment: {
+        text: action.label,
+        emoji: '',
+      },
+    };
+
+    scrollToHighlight(pageHighlight);
+  };
+
   const handleUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -156,7 +223,7 @@ function App() {
         onLogout={handleLogout}
       />
 
-      <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
+      <div className="flex flex-col xl:flex-row flex-1 overflow-hidden">
         <div className="flex-1 relative h-[60%] md:h-full w-full">
           <PDFViewer
             url={url}
@@ -167,13 +234,14 @@ function App() {
             selectionMode={selectionMode}
           />
         </div>
-        <div className="h-[40%] md:h-auto md:w-auto w-full overflow-hidden">
+        <div className="h-[40%] xl:h-auto xl:w-auto w-full overflow-hidden">
           <Sidebar
             highlights={highlights}
             onRemoveHighlight={removeHighlight}
             onHighlightClick={scrollToHighlight}
           />
         </div>
+        <AiPanel token={session.token} docId={docId} onAction={handleAiAction} />
       </div>
     </div>
   );

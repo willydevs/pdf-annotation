@@ -1,3 +1,4 @@
+import Anthropic from "@anthropic-ai/sdk";
 import bcrypt from "bcryptjs";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -5,6 +6,7 @@ import express from "express";
 import { OAuth2Client } from "google-auth-library";
 import jwt from "jsonwebtoken";
 import mysql from "mysql2/promise";
+import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -19,6 +21,10 @@ const port = Number(process.env.PORT || 3001);
 const jwtSecret = process.env.JWT_SECRET;
 const googleClientId = process.env.GOOGLE_CLIENT_ID || "";
 const googleClient = googleClientId ? new OAuth2Client(googleClientId) : null;
+const anthropic = process.env.ANTHROPIC_API_KEY ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }) : null;
+const anthropicModel = process.env.ANTHROPIC_MODEL || "claude-haiku-4-5-20251001";
+const vadeMecumTextPath = path.join(rootDir, "public", "vade_mecum_text_pages.json");
+const vadeMecumTextFallbackPath = path.join(rootDir, "output", "pdf", "vade_mecum_text_pages.json");
 
 if (!jwtSecret) {
   throw new Error("JWT_SECRET is required.");
@@ -64,6 +70,31 @@ async function ensureSchema() {
       CONSTRAINT annotations_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS ai_conversations (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      user_id BIGINT UNSIGNED NOT NULL,
+      title VARCHAR(190) NOT NULL DEFAULT 'Nova conversa',
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      CONSTRAINT ai_conversations_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS ai_messages (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      conversation_id BIGINT UNSIGNED NOT NULL,
+      user_id BIGINT UNSIGNED NOT NULL,
+      role ENUM('user', 'assistant') NOT NULL,
+      content MEDIUMTEXT NOT NULL,
+      actions_json JSON NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT ai_messages_conversation_fk FOREIGN KEY (conversation_id) REFERENCES ai_conversations(id) ON DELETE CASCADE,
+      CONSTRAINT ai_messages_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
 }
 
 function publicUser(user) {
@@ -94,6 +125,112 @@ function parseHighlights(value) {
   }
 
   return [];
+}
+
+function parseActions(value) {
+  if (!value) {
+    return [];
+  }
+
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  return [];
+}
+
+async function loadVadeMecumPages() {
+  try {
+    const raw = await fs.readFile(vadeMecumTextPath, "utf8");
+    return JSON.parse(raw);
+  } catch {
+    try {
+      const raw = await fs.readFile(vadeMecumTextFallbackPath, "utf8");
+      return JSON.parse(raw);
+    } catch {
+      return [];
+    }
+  }
+}
+
+let vadeMecumPagesPromise = loadVadeMecumPages();
+
+function scorePage(page, terms) {
+  const text = page.text.toLowerCase();
+  return terms.reduce((score, term) => {
+    if (!term || term.length < 3) {
+      return score;
+    }
+
+    const matches = text.split(term).length - 1;
+    return score + matches * Math.min(term.length, 16);
+  }, 0);
+}
+
+async function searchVadeMecum(query, limit = 6) {
+  const pages = await vadeMecumPagesPromise;
+  const terms = query
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .split(/[^a-z0-9]+/i)
+    .filter((term) => term.length >= 3);
+
+  if (!pages.length || !terms.length) {
+    return [];
+  }
+
+  const normalizedPages = pages.map((page) => ({
+    ...page,
+    text: page.text || "",
+    normalizedText: (page.text || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, ""),
+  }));
+
+  return normalizedPages
+    .map((page) => ({ ...page, score: scorePage({ text: page.normalizedText }, terms) }))
+    .filter((page) => page.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map((page) => ({
+      pageNumber: page.pageNumber,
+      text: page.text.slice(0, 1800),
+    }));
+}
+
+function extractJsonObject(text) {
+  const trimmed = text.trim();
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    const start = trimmed.indexOf("{");
+    const end = trimmed.lastIndexOf("}");
+    if (start >= 0 && end > start) {
+      return JSON.parse(trimmed.slice(start, end + 1));
+    }
+    throw new Error("Invalid AI JSON response.");
+  }
+}
+
+function toClientMessage(row) {
+  return {
+    id: row.id,
+    role: row.role,
+    content: row.content,
+    actions: parseActions(row.actions_json),
+    createdAt: row.created_at,
+  };
 }
 
 async function findUserByEmail(email) {
@@ -236,6 +373,189 @@ app.put("/api/annotations/:docId", requireAuth, async (req, res) => {
   );
 
   res.json({ ok: true });
+});
+
+app.get("/api/ai/conversations", requireAuth, async (req, res) => {
+  const [rows] = await pool.execute(
+    `SELECT id, title, created_at, updated_at
+     FROM ai_conversations
+     WHERE user_id = ?
+     ORDER BY updated_at DESC
+     LIMIT 50`,
+    [req.user.id],
+  );
+
+  res.json({
+    conversations: rows.map((row) => ({
+      id: row.id,
+      title: row.title,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    })),
+  });
+});
+
+app.post("/api/ai/conversations", requireAuth, async (req, res) => {
+  const title = String(req.body.title || "Nova conversa").trim().slice(0, 190) || "Nova conversa";
+  const [result] = await pool.execute(
+    "INSERT INTO ai_conversations (user_id, title) VALUES (?, ?)",
+    [req.user.id, title],
+  );
+
+  res.status(201).json({
+    conversation: {
+      id: result.insertId,
+      title,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+  });
+});
+
+app.get("/api/ai/conversations/:conversationId/messages", requireAuth, async (req, res) => {
+  const [conversations] = await pool.execute(
+    "SELECT id FROM ai_conversations WHERE id = ? AND user_id = ? LIMIT 1",
+    [req.params.conversationId, req.user.id],
+  );
+
+  if (!conversations.length) {
+    return res.status(404).json({ message: "Conversa nao encontrada." });
+  }
+
+  const [rows] = await pool.execute(
+    `SELECT id, role, content, actions_json, created_at
+     FROM ai_messages
+     WHERE conversation_id = ? AND user_id = ?
+     ORDER BY id ASC`,
+    [req.params.conversationId, req.user.id],
+  );
+
+  res.json({ messages: rows.map(toClientMessage) });
+});
+
+app.post("/api/ai/chat", requireAuth, async (req, res) => {
+  if (!anthropic) {
+    return res.status(503).json({ message: "IA nao configurada. Informe ANTHROPIC_API_KEY no servidor." });
+  }
+
+  const content = String(req.body.content || "").trim();
+  const docId = String(req.body.docId || "vade_mecum_default").slice(0, 255);
+  let conversationId = req.body.conversationId ? Number(req.body.conversationId) : null;
+
+  if (!content) {
+    return res.status(400).json({ message: "Digite uma pergunta para a IA." });
+  }
+
+  if (conversationId) {
+    const [rows] = await pool.execute(
+      "SELECT id FROM ai_conversations WHERE id = ? AND user_id = ? LIMIT 1",
+      [conversationId, req.user.id],
+    );
+    if (!rows.length) {
+      return res.status(404).json({ message: "Conversa nao encontrada." });
+    }
+  } else {
+    const title = content.slice(0, 80);
+    const [result] = await pool.execute(
+      "INSERT INTO ai_conversations (user_id, title) VALUES (?, ?)",
+      [req.user.id, title || "Nova conversa"],
+    );
+    conversationId = result.insertId;
+  }
+
+  await pool.execute(
+    "INSERT INTO ai_messages (conversation_id, user_id, role, content) VALUES (?, ?, 'user', ?)",
+    [conversationId, req.user.id, content],
+  );
+
+  const [historyRows] = await pool.execute(
+    `SELECT role, content
+     FROM ai_messages
+     WHERE conversation_id = ? AND user_id = ?
+     ORDER BY id DESC
+     LIMIT 10`,
+    [conversationId, req.user.id],
+  );
+  const history = historyRows.reverse();
+  const contextPages = await searchVadeMecum(content);
+
+  const systemPrompt = `
+Voce e uma IA juridica dentro de um leitor de PDF do Vade Mecum.
+Responda em portugues do Brasil, com objetividade e cuidado juridico.
+Use as paginas recuperadas do Vade Mecum quando forem relevantes.
+Voce pode sugerir acoes para o app executar.
+
+Retorne somente JSON valido neste formato:
+{
+  "message": "resposta para o usuario",
+  "actions": [
+    {
+      "type": "go_to_page",
+      "label": "Abrir pagina 10",
+      "pageNumber": 10
+    },
+    {
+      "type": "create_annotation",
+      "label": "Criar anotacao",
+      "pageNumber": 10,
+      "quote": "trecho curto encontrado ou sugerido",
+      "note": "texto da nota"
+    }
+  ]
+}
+
+Use no maximo 4 acoes. So crie actions quando forem realmente uteis.
+Para criar anotacao, escolha pageNumber e quote curtos. Se nao tiver pagina segura, nao crie action.
+Nao invente citacoes. Se o contexto nao bastar, diga o que precisa ser verificado.
+`.trim();
+
+  const contextText = contextPages.length
+    ? contextPages.map((page) => `Pagina ${page.pageNumber}:\n${page.text}`).join("\n\n---\n\n")
+    : "Nenhuma pagina relevante encontrada no indice local.";
+
+  const anthropicMessages = [
+    ...history.map((message) => ({
+      role: message.role === "assistant" ? "assistant" : "user",
+      content: message.content,
+    })),
+    {
+      role: "user",
+      content: `Pergunta atual: ${content}\n\nDocumento: ${docId}\n\nContexto recuperado do Vade Mecum:\n${contextText}`,
+    },
+  ];
+
+  const completion = await anthropic.messages.create({
+    model: anthropicModel,
+    max_tokens: 1200,
+    temperature: 0.2,
+    system: systemPrompt,
+    messages: anthropicMessages,
+  });
+
+  const text = completion.content
+    .filter((block) => block.type === "text")
+    .map((block) => block.text)
+    .join("\n");
+  const parsed = extractJsonObject(text);
+  const assistantContent = String(parsed.message || "Nao consegui montar uma resposta.");
+  const actions = Array.isArray(parsed.actions) ? parsed.actions.slice(0, 4) : [];
+
+  const [messageResult] = await pool.execute(
+    "INSERT INTO ai_messages (conversation_id, user_id, role, content, actions_json) VALUES (?, ?, 'assistant', ?, ?)",
+    [conversationId, req.user.id, assistantContent, JSON.stringify(actions)],
+  );
+  await pool.execute("UPDATE ai_conversations SET updated_at = CURRENT_TIMESTAMP WHERE id = ?", [conversationId]);
+
+  res.json({
+    conversationId,
+    message: {
+      id: messageResult.insertId,
+      role: "assistant",
+      content: assistantContent,
+      actions,
+      createdAt: new Date().toISOString(),
+    },
+  });
 });
 
 app.use(express.static(path.join(rootDir, "dist")));

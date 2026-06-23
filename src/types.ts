@@ -40,3 +40,32 @@ export interface Session {
     token: string;
     user: User;
 }
+
+export type AiAction =
+    | {
+        type: 'go_to_page';
+        label: string;
+        pageNumber: number;
+    }
+    | {
+        type: 'create_annotation';
+        label: string;
+        pageNumber: number;
+        quote: string;
+        note: string;
+    };
+
+export interface AiConversation {
+    id: number;
+    title: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface AiMessage {
+    id: number;
+    role: 'user' | 'assistant';
+    content: string;
+    actions: AiAction[];
+    createdAt: string;
+}
