@@ -18,7 +18,12 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
     },
   });
 
-  const data = await response.json().catch(() => ({}));
+  const data = await response.json().catch(() => ({
+    message:
+      response.status === 404
+        ? "API não encontrada no servidor. Verifique o deploy do backend na Vercel."
+        : "Não foi possível concluir a solicitação.",
+  }));
 
   if (!response.ok) {
     throw new Error(data.message || "Não foi possível concluir a solicitação.");

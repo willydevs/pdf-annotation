@@ -566,6 +566,11 @@ app.get(/.*/, (_req, res) => {
 });
 
 await ensureSchema();
-app.listen(port, () => {
-  console.log(`API running on port ${port}`);
-});
+
+if (!process.env.VERCEL) {
+  app.listen(port, () => {
+    console.log(`API running on port ${port}`);
+  });
+}
+
+export default app;
