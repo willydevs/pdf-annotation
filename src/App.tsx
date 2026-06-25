@@ -4,6 +4,7 @@ import { Toolbar } from './components/Toolbar';
 import { PDFViewer } from './components/PDFViewer';
 import { AuthPanel } from './components/AuthPanel';
 import { AiPanel } from './components/AiPanel';
+import { TableOfContents } from './components/TableOfContents';
 import { authStorage, fetchCurrentUser, fetchHighlights, saveHighlights } from './api';
 import type { AiAction, Highlight, Session } from './types';
 import * as pdfjs from 'pdfjs-dist';
@@ -30,6 +31,7 @@ function App() {
   const [docId, setDocId] = useState<string>('vade_mecum_default');
   const [annotationsLoaded, setAnnotationsLoaded] = useState(false);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [showToc, setShowToc] = useState(false);
 
   useEffect(() => {
     if (!token) {
@@ -112,6 +114,20 @@ function App() {
     if (scrollRef.current) {
       scrollRef.current(highlight);
     }
+  };
+
+  const navigateToPage = (pageNumber: number) => {
+    const pageHighlight: Highlight = {
+      id: `toc-page-${pageNumber}-${Date.now()}`,
+      content: { text: '' },
+      position: {
+        pageNumber: Math.max(1, pageNumber),
+        boundingRect: { x1: 1, y1: 1, x2: 2, y2: 2, width: 1, height: 1 },
+        rects: [],
+      },
+      comment: { text: '', emoji: '' },
+    };
+    scrollToHighlight(pageHighlight);
   };
 
   const createAiHighlight = (action: Extract<AiAction, { type: 'create_annotation' }>) => {
@@ -221,10 +237,18 @@ function App() {
         user={session.user}
         syncStatus={syncStatus}
         onLogout={handleLogout}
+        showToc={showToc}
+        onToggleToc={() => setShowToc(v => !v)}
       />
 
       <div className="flex flex-col xl:flex-row flex-1 overflow-hidden">
         <div className="flex-1 relative h-[60%] md:h-full w-full">
+          {showToc && (
+            <TableOfContents
+              onNavigate={navigateToPage}
+              onClose={() => setShowToc(false)}
+            />
+          )}
           <PDFViewer
             url={url}
             highlights={highlights}

@@ -558,6 +558,58 @@ Nao invente citacoes. Se o contexto nao bastar, diga o que precisa ser verificad
   });
 });
 
+app.get("/api/vade-mecum/toc", async (_req, res) => {
+  const pages = await vadeMecumPagesPromise;
+  if (!pages.length) {
+    return res.json({ entries: [] });
+  }
+
+  // Patterns that indicate the start of a major law or section
+  const titlePatterns = [
+    /^CONSTITUIÇÃO/,
+    /^EMENDA CONSTITUCIONAL/,
+    /^ATO DAS DISPOSIÇÕES/,
+    /^CÓDIGO\s+\w/,
+    /^CONSOLIDAÇÃO DAS LEIS/,
+    /^ESTATUTO\s+D[AEOI]/,
+    /^LEI\s+N[Oº°\.]\s*[\d.]+/,
+    /^DECRETO-LEI\s+N[Oº°\.]\s*[\d.]+/,
+    /^DECRETO\s+N[Oº°\.]\s*[\d.]+/,
+    /^LEI COMPLEMENTAR\s+N[Oº°\.]\s*[\d.]+/,
+    /^MEDIDA PROVISÓRIA\s+N[Oº°\.]\s*[\d.]+/,
+    /^SÚMULA/,
+  ];
+
+  const entries = [];
+  const seen = new Set();
+
+  for (const page of pages) {
+    const text = (page.text || '').trim();
+    if (!text) continue;
+
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+
+    for (const line of lines.slice(0, 12)) {
+      if (line.length < 8 || line.length > 180) continue;
+
+      const upper = line.toUpperCase();
+      const isAllCaps = line === upper && /[A-ZÁÉÍÓÚÀÃÕÂÊÔ]/.test(line) && line.length >= 12;
+      const matchesPattern = titlePatterns.some(p => p.test(upper));
+
+      if (matchesPattern || isAllCaps) {
+        const clean = line.replace(/\s+/g, ' ').trim();
+        if (!seen.has(clean)) {
+          seen.add(clean);
+          entries.push({ title: clean, pageNumber: page.pageNumber });
+        }
+        break;
+      }
+    }
+  }
+
+  res.json({ entries });
+});
+
 app.use(express.static(path.join(rootDir, "dist")));
 app.use(express.static(path.join(rootDir, "public")));
 

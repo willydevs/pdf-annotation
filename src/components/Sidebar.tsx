@@ -1,6 +1,14 @@
 import React, { useMemo, useState } from 'react';
 import type { Highlight } from '../types';
 import { ExternalLink, Search, Trash2, X } from 'lucide-react';
+
+const COLOR_HEX: Record<string, string> = {
+    yellow: '#EAB308',
+    green: '#22C55E',
+    blue: '#3B82F6',
+    pink: '#EC4899',
+    orange: '#F97316',
+};
 import { LinkableText } from './LinkableText';
 
 interface SidebarProps {
@@ -85,7 +93,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ highlights, onRemoveHighlight,
                             key={highlight.id}
                             className="bg-white p-0 rounded-lg shadow-sm border border-gray-200 overflow-hidden flex flex-col group"
                         >
-                            <div className="px-4 py-2 border-b border-gray-100 bg-white">
+                            <div className="px-4 py-2 border-b border-gray-100 bg-white flex items-center gap-2">
+                                <span
+                                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                                    style={{ backgroundColor: COLOR_HEX[highlight.color || 'yellow'] ?? COLOR_HEX.yellow }}
+                                />
                                 <span className="text-xs text-gray-500 font-medium">
                                     Página {highlight.position.pageNumber}
                                 </span>

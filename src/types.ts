@@ -27,6 +27,7 @@ export interface Highlight {
         emoji: string;
     };
     id: string;
+    color?: string;
 }
 
 export interface User {

@@ -51,8 +51,8 @@ export const PDFViewer = ({ url, highlights, onAddHighlight, scrollRef, scale, s
                             hideTipAndSelection
                         ) => (
                             <Tip
-                                onConfirm={(comment) => {
-                                    onAddHighlight({ content, position, comment, id: crypto.randomUUID() });
+                                onConfirm={({ text, emoji, color }) => {
+                                    onAddHighlight({ content, position, comment: { text, emoji }, color, id: crypto.randomUUID() });
                                     hideTipAndSelection();
                                 }}
                             />
@@ -67,21 +67,26 @@ export const PDFViewer = ({ url, highlights, onAddHighlight, scrollRef, scale, s
                             isScrolledTo
                         ) => {
                             const isTextHighlight = !highlight.content.image;
+                            const hlColor = highlight.color || 'yellow';
 
-                            const component = isTextHighlight ? (
-                                <Highlight
-                                    isScrolledTo={isScrolledTo}
-                                    position={highlight.position}
-                                    comment={highlight.comment}
-                                />
-                            ) : (
-                                <AreaHighlight
-                                    isScrolledTo={isScrolledTo}
-                                    highlight={highlight}
-                                    onChange={(boundingRect) => {
-                                        console.log("Resize Area", boundingRect);
-                                    }}
-                                />
+                            const component = (
+                                <div data-hl-color={hlColor}>
+                                    {isTextHighlight ? (
+                                        <Highlight
+                                            isScrolledTo={isScrolledTo}
+                                            position={highlight.position}
+                                            comment={highlight.comment}
+                                        />
+                                    ) : (
+                                        <AreaHighlight
+                                            isScrolledTo={isScrolledTo}
+                                            highlight={highlight}
+                                            onChange={(boundingRect) => {
+                                                console.log("Resize Area", boundingRect);
+                                            }}
+                                        />
+                                    )}
+                                </div>
                             );
 
                             return (

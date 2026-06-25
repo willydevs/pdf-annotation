@@ -1,5 +1,5 @@
 import React from 'react';
-import { LogOut, MousePointer2, Type, Upload, UserCircle, ZoomIn, ZoomOut } from 'lucide-react';
+import { BookOpen, LogOut, MousePointer2, Type, Upload, UserCircle, ZoomIn, ZoomOut } from 'lucide-react';
 import type { User } from '../types';
 
 interface ToolbarProps {
@@ -11,6 +11,8 @@ interface ToolbarProps {
     user: User;
     syncStatus: 'idle' | 'saving' | 'saved' | 'error';
     onLogout: () => void;
+    showToc: boolean;
+    onToggleToc: () => void;
 }
 
 const syncLabel = {
@@ -29,6 +31,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
     user,
     syncStatus,
     onLogout,
+    showToc,
+    onToggleToc,
 }) => {
     return (
         <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 shadow-sm z-10 overflow-x-auto overflow-y-hidden gap-4 min-w-0">
@@ -42,6 +46,15 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             </div>
 
             <div className="flex items-center space-x-4 shrink-0">
+                <button
+                    onClick={onToggleToc}
+                    title="Sumário"
+                    className={`flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${showToc ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                >
+                    <BookOpen size={14} />
+                    <span className="hidden sm:inline">Sumário</span>
+                </button>
+
                 <div className="flex bg-gray-100 rounded-lg p-1">
                     <button
                         onClick={() => setSelectionMode('text')}

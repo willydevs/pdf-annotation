@@ -129,6 +129,16 @@ export async function fetchAiMessages(token: string, conversationId: number): Pr
   return data.messages;
 }
 
+export interface TocEntry {
+  title: string;
+  pageNumber: number;
+}
+
+export async function fetchToc(): Promise<TocEntry[]> {
+  const data = await request<{ entries: TocEntry[] }>("/api/vade-mecum/toc");
+  return data.entries;
+}
+
 export async function sendAiMessage(
   token: string,
   content: string,

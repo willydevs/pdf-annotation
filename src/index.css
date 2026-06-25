@@ -1,3 +1,19 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Custom highlight colors — targets react-pdf-highlighter internal classes */
+[data-hl-color="yellow"] .Highlight__part { background: rgba(255, 226, 143, 0.55) !important; }
+[data-hl-color="yellow"] .AreaHighlight__part { background: rgba(255, 226, 143, 0.35) !important; border: 2px solid rgba(234, 179, 8, 0.6) !important; }
+
+[data-hl-color="green"] .Highlight__part { background: rgba(88, 210, 110, 0.5) !important; }
+[data-hl-color="green"] .AreaHighlight__part { background: rgba(88, 210, 110, 0.3) !important; border: 2px solid rgba(34, 197, 94, 0.6) !important; }
+
+[data-hl-color="blue"] .Highlight__part { background: rgba(100, 162, 255, 0.5) !important; }
+[data-hl-color="blue"] .AreaHighlight__part { background: rgba(100, 162, 255, 0.3) !important; border: 2px solid rgba(59, 130, 246, 0.6) !important; }
+
+[data-hl-color="pink"] .Highlight__part { background: rgba(255, 130, 180, 0.5) !important; }
+[data-hl-color="pink"] .AreaHighlight__part { background: rgba(255, 130, 180, 0.3) !important; border: 2px solid rgba(236, 72, 153, 0.6) !important; }
+
+[data-hl-color="orange"] .Highlight__part { background: rgba(255, 165, 80, 0.5) !important; }
+[data-hl-color="orange"] .AreaHighlight__part { background: rgba(255, 165, 80, 0.3) !important; border: 2px solid rgba(249, 115, 22, 0.6) !important; }
